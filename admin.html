@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin &middot; Menu Ompreng SPPG</title>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="admin">
+
+<header class="admin-top">
+    <div class="wrap">
+        <a class="brand" href="index.html">
+            <span class="brand-dot"></span>
+            <span>Menu Ompreng SPPG</span>
+        </a>
+        <nav class="admin-nav">
+            <a href="admin.html" class="on">Menu Harian</a>
+            <a href="cetak.html">Cetak Stiker</a>
+        </nav>
+    </div>
+</header>
+
+<main class="wrap admin-main">
+
+    <div id="pesan" class="alert" style="display:none"></div>
+
+    <!-- ------------------------------------------------------------ -->
+    <div class="kartu" id="kartu-setelan">
+        <div class="kartu-head">
+            <h2>Setelan GitHub</h2>
+            <span class="chip chip-abu" id="lencana-setelan">Belum diatur</span>
+        </div>
+
+        <p class="hint" style="margin-bottom:1rem">
+            Diisi sekali saja, lalu tersimpan di browser ini. Lihat
+            <strong>README.md</strong> bagian cara membuat token.
+        </p>
+
+        <form id="form-setelan" class="grid grid-3">
+            <div>
+                <label for="s-owner">Pemilik repo (username GitHub)</label>
+                <input type="text" id="s-owner" placeholder="namaakun" autocomplete="off">
+            </div>
+            <div>
+                <label for="s-repo">Nama repo</label>
+                <input type="text" id="s-repo" placeholder="ompreng" autocomplete="off">
+            </div>
+            <div>
+                <label for="s-branch">Cabang (kosongkan saja)</label>
+                <input type="text" id="s-branch" placeholder="main" autocomplete="off">
+            </div>
+            <div style="grid-column:1/-1">
+                <label for="s-token">Token GitHub</label>
+                <input type="password" id="s-token" placeholder="github_pat_..." autocomplete="off">
+                <div class="hint">
+                    Token disimpan hanya di browser ini (localStorage), tidak pernah dikirim
+                    ke mana pun selain GitHub.
+                </div>
+            </div>
+            <div class="btn-baris" style="grid-column:1/-1">
+                <button class="btn" type="submit">Simpan &amp; Cek Koneksi</button>
+                <button class="btn btn-abu" type="button" id="tombol-lupakan">Hapus Setelan</button>
+            </div>
+        </form>
+
+        <div id="status-koneksi" class="alert" style="display:none;margin-top:1rem"></div>
+    </div>
+
+    <!-- ------------------------------------------------------------ -->
+    <div class="kartu">
+        <div class="kartu-head">
+            <h2>Dapur / SPPG</h2>
+            <a class="btn btn-kecil" href="cetak.html">Cetak Stiker QR</a>
+        </div>
+
+        <div class="tabel-bungkus">
+            <table class="tabel">
+                <thead>
+                    <tr><th>Kode</th><th>Nama</th><th>Penanggung jawab</th><th>Alamat QR</th><th></th></tr>
+                </thead>
+                <tbody id="isi-dapur">
+                    <tr><td colspan="5" class="kosong">Memuat…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="kartu">
+        <div class="kartu-head">
+            <h2 id="judul-form-dapur">Tambah Dapur</h2>
+            <button class="btn btn-kecil btn-abu" type="button" id="tombol-batal-dapur" style="display:none">Batal</button>
+        </div>
+
+        <form id="form-dapur" class="grid grid-3">
+            <div>
+                <label for="d-kode">Kode dapur (masuk ke QR)</label>
+                <input type="text" id="d-kode" placeholder="SPPG-MLG-01" autocomplete="off">
+                <div class="hint">Huruf besar, angka, dan tanda minus.</div>
+            </div>
+            <div>
+                <label for="d-nama">Nama dapur / SPPG</label>
+                <input type="text" id="d-nama" placeholder="SPPG Municmlg 01" autocomplete="off">
+            </div>
+            <div>
+                <label for="d-pj">Penanggung jawab</label>
+                <input type="text" id="d-pj" autocomplete="off">
+            </div>
+            <div style="grid-column:1/-1">
+                <label for="d-alamat">Alamat</label>
+                <textarea id="d-alamat"></textarea>
+            </div>
+            <div class="btn-baris" style="grid-column:1/-1">
+                <button class="btn" type="submit" id="tombol-simpan-dapur">Simpan Dapur</button>
+            </div>
+        </form>
+
+        <div class="alert alert-err" style="margin-top:1rem;margin-bottom:0">
+            <strong>Jangan ganti kode dapur setelah stiker dicetak.</strong>
+            Kode itu yang tercetak di dalam QR. Kalau diubah, semua stiker lama tidak berlaku.
+        </div>
+    </div>
+
+    <!-- ------------------------------------------------------------ -->
+    <div class="kartu">
+        <div class="kartu-head">
+            <h2>Menu Harian</h2>
+            <div class="btn-baris">
+                <select id="pilih-dapur-menu" style="width:auto"></select>
+                <a class="btn" id="tombol-menu-baru" href="menu.html">+ Isi Menu</a>
+            </div>
+        </div>
+
+        <div class="tabel-bungkus">
+            <table class="tabel">
+                <thead>
+                    <tr><th>Tanggal</th><th>Judul</th><th>Komponen</th><th>Gizi</th><th>Gambar</th><th></th></tr>
+                </thead>
+                <tbody id="isi-menu">
+                    <tr><td colspan="6" class="kosong">Pilih dapur dulu.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="assets/js/lib.js"></script>
+<script src="assets/js/gh.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

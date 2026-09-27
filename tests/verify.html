@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>UJI-BELUM-JALAN</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 20px; }
+  #hasil div { padding: 3px 0; }
+  .ok { color: #167a4c; }
+  .err { color: #c0392b; font-weight: 700; }
+  canvas { border: 1px solid #ccc; max-width: 200px; height: auto; }
+</style>
+</head>
+<body>
+<!--
+  Uji browser untuk bagian yang butuh canvas: ketepatan gambar QR dan
+  keterisian poster. Dijalankan dengan Chrome headless:
+
+      "Google Chrome" --headless --virtual-time-budget=5000 --dump-dom \
+        "http://127.0.0.1:8000/tests/verify.html"
+
+  Hasilnya dibaca dari elemen #hasil dan <title>.
+-->
+<h1>Uji Browser</h1>
+<div id="hasil"></div>
+<canvas id="kanvas-qr" width="10" height="10"></canvas>
+<canvas id="kanvas-poster" width="10" height="10"></canvas>
+
+<script src="../assets/js/lib.js"></script>
+<script src="../assets/js/qrcode.js"></script>
+<script src="../assets/js/poster.js"></script>
+<script src="../assets/js/stiker.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var L = window.OmprengLib;
+  var hasil = [];
+  var jumlahGagal = 0;
+
+  function uji(nama, fn) {
+    try {
+      fn();
+      hasil.push({ ok: true, nama: nama });
+    } catch (err) {
+      hasil.push({ ok: false, nama: nama, pesan: err.message });
+      jumlahGagal++;
+    }
+  }
+
+  function tegas(syarat, pesan) {
+    if (!syarat) { throw new Error(pesan); }
+  }
+
+  /* -------------------------------------------------------------- *
+   * Alamat stiker
+   * -------------------------------------------------------------- */
+  uji('alamat stiker menunjuk ke berkas .png', function () {
+    var alamat = L.alamatStiker('dwi', 'ompreng', 'SPPG-MLG-01');
+    tegas(alamat === 'https://dwi.github.io/ompreng/m/SPPG-MLG-01.png',
+      'alamat salah: ' + alamat);
+  });
+
+  /* -------------------------------------------------------------- *
+   * Gambar QR
+   * -------------------------------------------------------------- */
+  uji('QR digambar tepat satu modul per kotak', function () {
+    var alamat = L.alamatStiker('dwi', 'ompreng', 'SPPG-MLG-01');
+    var kanvas = document.getElementById('kanvas-qr');
+
+    window.StikerOmpreng.gambarQR(kanvas, alamat);
+
+    var acuan = qrcode(0, 'M');
+    acuan.addData(alamat);
+    acuan.make();
+
+    var jumlahModul = acuan.getModuleCount();
+    var margin = window.StikerOmpreng.MARGIN;
+    var skala = kanvas.width / (jumlahModul + margin * 2);
+
+    tegas(Number.isInteger(skala), 'skala modul bukan bilangan bulat: ' + skala);
+
+    var ctx = kanvas.getContext('2d');
+    var salah = 0;
+
+    for (var r = 0; r < jumlahModul; r++) {
+      for (var c = 0; c < jumlahModul; c++) {
+        var px = ctx.getImageData(
+          Math.round((c + margin + 0.5) * skala),
+          Math.round((r + margin + 0.5) * skala), 1, 1).data;
+        if ((px[0] < 128) !== acuan.isDark(r, c)) { salah++; }
+      }
+    }
+
+    tegas(salah === 0, salah + ' modul digambar salah');
+
+    var pojok = ctx.getImageData(2, 2, 1, 1).data;
+    tegas(pojokPutih(pojok), 'zona kosong di pinggir QR tidak putih');
+  });
+
+  function pojokPutih(px) { return px[0] >= 250 && px[1] >= 250 && px[2] >= 250; }
+
+  uji('QR pelan-pelan tetap terbaca untuk kode dapur berbeda', function () {
+    ['A', 'SPPG-MLG-01', 'DAPUR-CIMAHI-1'].forEach(function (kode) {
+      var kanvas = document.createElement('canvas');
+      window.StikerOmpreng.gambarQR(kanvas, L.alamatStiker('dwi', 'ompreng', kode));
+      tegas(kanvas.width > 100, 'canvas terlalu kecil untuk ' + kode);
+
+      var acuan = qrcode(0, 'M');
+      acuan.addData(L.alamatStiker('dwi', 'ompreng', kode));
+      acuan.make();
+      tegas(acuan.getModuleCount() > 20, 'jumlah modul tidak wajar');
+    });
+  });
+
+  /* -------------------------------------------------------------- *
+   * Poster
+   * -------------------------------------------------------------- */
+  uji('poster tergambar penuh dengan semua bagiannya', function () {
+    var kanvas = document.getElementById('kanvas-poster');
+
+    window.PosterMenu.render(kanvas, {
+      nama_dapur: 'SPPG Municmlg 01',
+      kode_dapur: 'SPPG-MLG-01',
+      tanggal: '2026-09-25',
+      judul: 'Menu Makan Bergizi Gratis',
+      kalori: 617.5,
+      protein: 28.4,
+      karbohidrat: 74,
+      lemak: 18.2,
+      berat_porsi: 350,
+      batch: 'B-0925-A',
+      jam_produksi: '10:30',
+      pengawas: 'Budi Santoso',
+      ahli_gizi: 'Rina, S.Gz',
+      catatan: 'Tanpa bahan pengawet.',
+      items: [
+        { kategori: 'makanan_pokok', nama: 'Nasi putih', berat_gram: 150 },
+        { kategori: 'lauk_hewani', nama: 'Ayam bakar bumbu kuning', berat_gram: 70 },
+        { kategori: 'sayur', nama: 'Sayur sop', berat_gram: 100 },
+        { kategori: 'buah', nama: 'Pisang', berat_gram: 80 }
+      ],
+      foto: null
+    }, { width: 1080, height: 1440 });
+
+    tegas(kanvas.width === 1080 && kanvas.height === 1440, 'ukuran poster salah');
+
+    var ctx = kanvas.getContext('2d');
+    var warna = {};
+
+    for (var y = 0; y < kanvas.height; y += 20) {
+      for (var x = 0; x < kanvas.width; x += 20) {
+        var px = ctx.getImageData(x, y, 1, 1).data;
+        warna[px[0] + ',' + px[1] + ',' + px[2]] = true;
+      }
+    }
+
+    tegas(Object.keys(warna).length > 20, 'poster terlihat kosong (hanya ' + Object.keys(warna).length + ' warna)');
+
+    // Kepala poster harus hijau gelap khas aplikasi ini.
+    var kepala = ctx.getImageData(10, 10, 1, 1).data;
+    tegas(kepala[1] > kepala[0] && kepala[1] > kepala[2], 'kepala poster tidak hijau');
+
+    // Kotak gizi harus hijau muda.
+    var gizi = ctx.getImageData(200, 1240, 1, 1).data;
+    tegas(gizi[1] > 230 && gizi[0] > 220, 'kotak gizi tidak hijau muda');
+  });
+
+  uji('poster tanpa komponen tidak error', function () {
+    var kanvas = document.createElement('canvas');
+    window.PosterMenu.render(kanvas, {
+      nama_dapur: 'Dapur Kosong',
+      kode_dapur: 'X-1',
+      tanggal: '2026-01-01',
+      items: [],
+      foto: null
+    }, { width: 400, height: 533 });
+    tegas(kanvas.width === 400, 'ukuran salah');
+  });
+
+  /* -------------------------------------------------------------- *
+   * Laporan
+   * -------------------------------------------------------------- */
+  var wadah = document.getElementById('hasil');
+  hasil.forEach(function (h) {
+    var baris = document.createElement('div');
+    baris.className = h.ok ? 'ok' : 'err';
+    baris.textContent = (h.ok ? 'LULUS  ' : 'GAGAL  ') + h.nama + (h.pesan ? ' -> ' + h.pesan : '');
+    wadah.appendChild(baris);
+  });
+
+  var ringkas = document.createElement('div');
+  ringkas.id = 'ringkasan';
+  ringkas.textContent = 'Lulus ' + (hasil.length - jumlahGagal) + ' dari ' + hasil.length;
+  wadah.appendChild(ringkas);
+
+  document.title = jumlahGagal === 0 ? 'UJI-BROWSER-OK' : 'UJI-BROWSER-GAGAL';
+})();
+</script>
+</body>
+</html>

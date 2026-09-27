@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cetak Stiker QR</title>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="admin">
+
+<header class="admin-top">
+    <div class="wrap">
+        <a class="brand" href="index.html">
+            <span class="brand-dot"></span>
+            <span>Menu Ompreng SPPG</span>
+        </a>
+        <nav class="admin-nav">
+            <a href="admin.html">Menu Harian</a>
+            <a href="cetak.html" class="on">Cetak Stiker</a>
+        </nav>
+    </div>
+</header>
+
+<main class="wrap admin-main">
+
+    <div class="kartu-head">
+        <h1>Cetak Stiker QR Ompreng</h1>
+        <div class="btn-baris no-print">
+            <button class="btn" type="button" id="tombol-cetak">Cetak / Simpan PDF</button>
+        </div>
+    </div>
+
+    <div class="kartu no-print">
+        <form class="grid grid-4" id="form-pilihan">
+            <div>
+                <label for="pilih-dapur">Dapur / SPPG</label>
+                <select id="pilih-dapur"></select>
+            </div>
+            <div>
+                <label for="jumlah">Jumlah stiker</label>
+                <input type="number" id="jumlah" min="1" max="500" value="12">
+            </div>
+            <div>
+                <label for="mulai">Nomor ompreng mulai dari</label>
+                <input type="number" id="mulai" min="1" value="1">
+            </div>
+            <div style="align-self:end">
+                <button class="btn btn-abu" type="submit">Tampilkan</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="alert alert-info no-print" id="info-alamat">
+        Memuat alamat…
+    </div>
+
+    <div class="alert alert-err no-print">
+        <strong>Stiker ini dicetak sekali saja.</strong>
+        Isi QR-nya adalah alamat <code id="contoh-alamat">…</code>.
+        Alamat itu tidak berubah walaupun menunya ganti setiap hari &mdash;
+        yang kamu perbarui harian adalah <em>gambarnya</em> di halaman Isi Menu.
+        Karena itu jangan ganti nama dapur setelah stiker dicetak, sebab semua stiker harus dibuat ulang.
+    </div>
+
+    <div class="kartu">
+        <div class="kartu-head no-print">
+            <h2>Pratinjau Stiker</h2>
+            <span class="hint" id="jumlah-terpilih"></span>
+        </div>
+        <div class="stiker-grid" id="stiker-grid"></div>
+        <div class="kosong" id="pesan-kosong" style="display:none">
+            Belum ada dapur terdaftar. Tambahkan dulu di <a href="admin.html">halaman admin</a>.
+        </div>
+    </div>
+
+</main>
+
+<script src="assets/js/lib.js"></script>
+<script src="assets/js/qrcode.js"></script>
+<script src="assets/js/gh.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/stiker.js"></script>
+<script>
+(function () {
+    var L = window.OmprengLib;
+    var grid = document.getElementById('stiker-grid');
+    var pilih = document.getElementById('pilih-dapur');
+    var form = document.getElementById('form-pilihan');
+    var daftar = [];
+
+    var info = L.deteksiRepo(location.hostname, location.pathname);
+    var situs = info ? L.alamatSitus(info.owner, info.repo) : '';
+
+    if (!situs) {
+        document.getElementById('info-alamat').className = 'alert alert-err no-print';
+        document.getElementById('info-alamat').innerHTML =
+            '<strong>Halaman ini belum dibuka dari alamat GitHub Pages.</strong> ' +
+            'Setelah diunggah ke GitHub, alamat QR akan terbentuk sendiri. ' +
+            'Untuk sementara, alamat yang dipakai: <code>' + location.origin + location.pathname.replace(/[^/]*$/, '') + '</code>';
+        situs = location.origin + location.pathname.replace(/[^/]*$/, '').replace(/\/$/, '');
+    }
+
+    window.DataOmpreng.bacaDaftarDapur().then(function (hasil) {
+        daftar = hasil.dapur || [];
+
+        if (!daftar.length) {
+            document.getElementById('pesan-kosong').style.display = 'block';
+            document.getElementById('info-alamat').style.display = 'none';
+            return;
+        }
+
+        pilih.innerHTML = daftar.map(function (d, i) {
+            return '<option value="' + i + '">' + esc(d.nama) + ' (' + esc(L.kodeAman(d.kode)) + ')</option>';
+        }).join('');
+
+        gambar();
+    });
+
+    form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        gambar();
+    });
+
+    pilih.addEventListener('change', gambar);
+
+    function gambar() {
+        var d = daftar[Number(pilih.value)];
+        if (!d) { return; }
+
+        var kode = L.kodeAman(d.kode);
+        var alamat = situs + '/' + L.pathPosterTerbaru(kode);
+        var jumlah = Math.max(1, Math.min(500, Number(document.getElementById('jumlah').value) || 1));
+        var mulai = Math.max(1, Number(document.getElementById('mulai').value) || 1);
+
+        document.getElementById('contoh-alamat').textContent = alamat;
+        document.getElementById('jumlah-terpilih').textContent = jumlah + ' stiker';
+        document.getElementById('info-alamat').className = 'alert alert-info no-print';
+        document.getElementById('info-alamat').innerHTML =
+            'Stiker ini akan membuka gambar menu terbaru dari dapur <strong>' + esc(d.nama) + '</strong>: ' +
+            '<br><code style="word-break:break-all">' + esc(alamat) + '</code>';
+
+        window.StikerOmpreng.gambarKe(grid, {
+            scanUrl: alamat,
+            nama: d.nama,
+            kode: kode,
+            mulai: mulai,
+            jumlah: jumlah
+        });
+    }
+
+    document.getElementById('tombol-cetak').addEventListener('click', function () {
+        window.print();
+    });
+
+    function esc(teks) {
+        return String(teks === null || teks === undefined ? '' : teks)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+})();
+</script>
+</body>
+</html>
